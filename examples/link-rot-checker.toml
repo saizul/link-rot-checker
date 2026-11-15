@@ -1,0 +1,33 @@
+# link-rot-checker settings. Every key is optional; command-line flags win.
+# Use with: link-rot-checker scan https://www.example.com/ --config examples/link-rot-checker.toml
+
+[link-rot-checker]
+# crawling
+max_pages = 2000
+max_depth = 8
+include_subdomains = false
+extra_hosts = ["example.com"]          # www.example.com and example.com are the same site
+exclude = ['/wp-admin/', '\?replytocom=', '/tag/', '/page/\d+/']
+ignore = ['^https://(www\.)?linkedin\.com/']   # never checked (they block automated requests)
+respect_robots = true
+
+# checking
+concurrency = 10
+per_host_concurrency = 2
+rate_per_host = 3.0                    # requests per second per host
+host_rates = { "github.com" = 1.0 }
+timeout = 20
+retries = 2
+chain_threshold = 2
+blocked_statuses = [401, 403, 429, 999]
+
+# Extra headers, read from environment variables (never put the value in this file):
+# header_env = { "X-Preview-Token" = "SITE_PREVIEW_TOKEN" }
+
+# Wayback Machine
+wayback = true
+wayback_cache = ".link-rot-cache/wayback.json"
+
+# CI: exit code 1 when at least fail_threshold targets are in these categories
+fail_on = ["broken", "redirect_loop", "parked"]
+fail_threshold = 1
