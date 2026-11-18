@@ -31,3 +31,5 @@ wayback_cache = ".link-rot-cache/wayback.json"
 # CI: exit code 1 when at least fail_threshold targets are in these categories
 fail_on = ["broken", "redirect_loop", "parked"]
 fail_threshold = 1
+# Fail only on problems that are new since this earlier report:
+# baseline = "link-rot-report/baseline.json"

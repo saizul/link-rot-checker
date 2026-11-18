@@ -34,6 +34,13 @@ def _check(c: CheckResult) -> dict[str, Any]:
 
 
 def to_dict(result: ScanResult) -> dict[str, Any]:
+    data = _to_dict(result)
+    if result.baseline is not None:
+        data["baseline"] = result.baseline
+    return data
+
+
+def _to_dict(result: ScanResult) -> dict[str, Any]:
     return {
         "tool": "link-rot-checker",
         "version": __version__,

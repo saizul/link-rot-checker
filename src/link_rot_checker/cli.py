@@ -11,9 +11,10 @@ from pathlib import Path
 from typing import TextIO
 
 from link_rot_checker._version import __version__
+from link_rot_checker.baseline import Baseline, BaselineDiff, compare, load_baseline
 from link_rot_checker.config import ConfigError, Settings, load_config_file
 from link_rot_checker.fixlist import build_fix_list
-from link_rot_checker.model import Category, ScanResult
+from link_rot_checker.model import PROBLEM_CATEGORIES, Category, ScanResult
 from link_rot_checker.report import FORMATS, write_reports
 from link_rot_checker.report.common import label, summary
 from link_rot_checker.scan import ScanError, run_scan
@@ -124,6 +125,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="categories that fail the run (default: broken,redirect_loop; 'none' never fails)",
     )
     g.add_argument("--fail-threshold", type=int, metavar="N", help="fail when at least N targets match (default 1)")
+    g.add_argument(
+        "--baseline",
+        metavar="FILE",
+        help="an earlier link-rot.json report: only targets that became problems since then fail the run",
+    )
 
     parser = argparse.ArgumentParser(
         prog="link-rot-checker",
@@ -219,6 +225,7 @@ _DIRECT = (
     "wayback_rate",
     "fail_on",
     "fail_threshold",
+    "baseline",
     "crawl",
     "include_subdomains",
     "respect_robots",
@@ -271,9 +278,24 @@ def read_url_file(name: str, stdin: TextIO) -> list[str]:
     return urls
 
 
-def failing(result: ScanResult, settings: Settings) -> list[str]:
+def failing(result: ScanResult, settings: Settings, baseline: Baseline | None = None) -> list[str]:
+    """Targets that fail the run; with a baseline, only the new or worse ones."""
     cats = settings.fail_categories()
+    if baseline is not None:
+        return compare(result, baseline, cats).regressions
     return [r.url for r in result.results.values() if r.category in cats]
+
+
+def print_baseline(diff: BaselineDiff, out: TextIO, limit: int = 10) -> None:
+    out.write(
+        f"\ncompared with {diff.source}: {len(diff.new)} new, {len(diff.worse)} worse, "
+        f"{len(diff.fixed)} fixed, {len(diff.unchanged)} unchanged problem target(s)\n"
+    )
+    for title, urls in (("new", diff.new), ("worse", diff.worse), ("fixed", diff.fixed)):
+        for url in urls[:limit]:
+            out.write(f"  {title}: {url}\n")
+        if len(urls) > limit:
+            out.write(f"  ... {len(urls) - limit} more {title}\n")
 
 
 def print_summary(result: ScanResult, settings: Settings, written: list[Path], out: TextIO) -> None:
@@ -341,6 +363,7 @@ def main(
             settings = dataclasses.replace(settings, start_urls=[])
         elif not settings.start_urls and not settings.sitemaps:
             raise ConfigError("give at least one start URL or --sitemap")
+        baseline = load_baseline(settings.baseline) if settings.baseline else None
         result = asyncio.run(
             run_scan(
                 settings,
@@ -350,6 +373,9 @@ def main(
                 progress=_progress(sys.stderr) if args.progress else None,
             )
         )
+        diff = compare(result, baseline, PROBLEM_CATEGORIES) if baseline is not None else None
+        if diff is not None:
+            result.baseline = diff.to_dict()
         written = write_reports(result, formats, args.output, args.basename)
     except (ConfigError, ScanError, argparse.ArgumentTypeError, OSError) as exc:
         print(f"link-rot-checker: error: {exc}", file=sys.stderr)
@@ -359,10 +385,13 @@ def main(
         return EXIT_ERROR
     if not args.quiet:
         print_summary(result, settings, written, stdout)
-    bad = failing(result, settings)
+        if diff is not None:
+            print_baseline(diff, stdout)
+    bad = failing(result, settings, baseline)
     if len(bad) >= settings.fail_threshold and bad:
         if not args.quiet:
             cats = ",".join(sorted(c.value for c in settings.fail_categories()))
-            stdout.write(f"\nFAIL: {len(bad)} target(s) in {cats}\n")
+            since = " since the baseline" if baseline is not None else ""
+            stdout.write(f"\nFAIL: {len(bad)} target(s) in {cats}{since}\n")
         return EXIT_PROBLEMS
     return EXIT_OK
