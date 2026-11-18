@@ -87,7 +87,8 @@ That is the bundled demo site (`examples/demo-site/`), served with `python -m ht
   archived capture (HTTP 200 captures only), with an optional preferred timestamp and an on-disk cache.
 - **Reports**: CSV (every link occurrence, and the fix list), JSON, Markdown and a self-contained HTML page, all
   grouped by source page, plus a **fix list** sorted by severity and by how many pages link to the target.
-- **CI**: `--fail-on` categories and `--fail-threshold`, exit codes 0/1/2, a `check` command for URL lists.
+- **CI**: `--fail-on` categories and `--fail-threshold`, `--baseline` to fail only on new link rot, exit codes
+  0/1/2, a `check` command for URL lists.
 
 ## Installation
 
@@ -172,6 +173,7 @@ Main options (run `link-rot-checker scan --help` for all of them):
 | `-f FMT` | `html,json` | `csv`, `json`, `markdown` (`md`), `html` or `all` |
 | `-o DIR`, `--basename NAME` | `link-rot-report`, `link-rot` | where reports go |
 | `--fail-on CATS`, `--fail-threshold N` | `broken,redirect_loop`, 1 | exit code 1 rules |
+| `--baseline FILE` | | an earlier `link-rot.json`: only problems that are new since then fail the run |
 | `-q`, `-v`, `--progress` | | quiet, verbose logging, progress on stderr |
 
 Exit codes: **0** no failing targets, **1** at least `--fail-threshold` targets in a `--fail-on` category,
@@ -267,6 +269,28 @@ pages: a 404 in the footer of 300 pages comes before a 404 in one old post.
 [`examples/github-actions-weekly.yml`](examples/github-actions-weekly.yml) runs a weekly scan of your site, caches
 Wayback lookups and uploads the reports as a build artifact. The job fails (exit code 1) when broken links or
 redirect loops are found; use `--fail-on none` to only report, or `--fail-threshold 10` to tolerate a few.
+
+### Failing only on new link rot
+
+An old site often has dozens of broken external links that nobody will fix this week. Save one JSON report as a
+baseline and pass it with `--baseline`: the run then fails only for targets that became a problem since then
+(new, or more severe than before), and the summary lists what changed.
+
+```console
+$ link-rot-checker scan https://www.example.com/ -f json -o baseline -q   # once, commit or cache the file
+$ link-rot-checker scan https://www.example.com/ --baseline baseline/link-rot.json
+...
+compared with baseline/link-rot.json: 1 new, 0 worse, 3 fixed, 41 unchanged problem target(s)
+  new: https://www.example.com/pricing-2025
+  fixed: https://ext.example.org/old-guide
+  ...
+
+FAIL: 1 target(s) in broken,redirect_loop since the baseline
+```
+
+Targets are matched by URL. A target counts as fixed when it is no longer a problem or no page links to it any
+more. The comparison is also written to the JSON report under `baseline` (`new`, `worse`, `fixed`, `unchanged`),
+and `baseline = "path/to/link-rot.json"` works in the configuration file.
 
 ## Library use
 

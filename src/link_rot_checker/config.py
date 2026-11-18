@@ -75,6 +75,8 @@ class Settings:
     # CI
     fail_on: list[str] = field(default_factory=lambda: list(DEFAULT_FAIL_ON))
     fail_threshold: int = 1
+    #: An earlier JSON report; when set, only targets that are new problems since then fail the run.
+    baseline: str | None = None
 
     def validate(self) -> None:
         if self.max_pages < 1:

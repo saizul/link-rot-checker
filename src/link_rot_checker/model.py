@@ -200,6 +200,8 @@ class ScanResult:
     finished_at: str = ""
     duration_s: float = 0.0
     settings: dict[str, object] = field(default_factory=dict)
+    #: Set by the CLI when ``--baseline`` is used: new, worse, fixed and unchanged problem targets.
+    baseline: dict[str, object] | None = None
 
     def result_for(self, link: Link) -> CheckResult | None:
         return self.results.get(link.target)

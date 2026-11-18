@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `--baseline FILE` (and `baseline` in the configuration file): compares the run with an earlier `link-rot.json`
+  report and fails only on targets that became a problem since then, or became more severe. The summary lists new,
+  worse and fixed targets, and the JSON report gains an optional `baseline` object (`source`, `new`, `worse`,
+  `fixed`, `unchanged`); schema 1 is otherwise unchanged.
+- Contributor community files: `CODE_OF_CONDUCT.md`, issue templates and a pull request template.
+
 ## [0.1.0] - 2026-11-15
 
 ### Added
