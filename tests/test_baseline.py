@@ -44,8 +44,12 @@ def test_compare_limited_to_categories():
 
 
 def test_baseline_from_dict_validates():
-    data = {"tool": "link-rot-checker", "schema": 1, "finished_at": "2026-11-01T00:00:00Z",
-            "targets": [{"url": "https://x.test/", "category": "broken"}, {"url": 5}, {"category": "weird"}]}
+    data = {
+        "tool": "link-rot-checker",
+        "schema": 1,
+        "finished_at": "2026-11-01T00:00:00Z",
+        "targets": [{"url": "https://x.test/", "category": "broken"}, {"url": 5}, {"category": "weird"}],
+    }
     parsed = baseline_from_dict(data, "b.json")
     assert parsed.categories == {"https://x.test/": Category.BROKEN}
     assert parsed.finished_at.startswith("2026-11-01")
